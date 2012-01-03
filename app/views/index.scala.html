@@ -1,0 +1,49 @@
+@(i:Int)
+
+@az(n:Int) = @{
+  Range(1, n+1).map("T"+_).mkString(", ")
+}
+
+@labels(n:Int) = @{
+  Range(1, n+1).map("lbl"+_+": String").mkString(", ")
+}
+
+@formats(n:Int) = @{
+  Range(1, n+1).map(i => "f"+i+": Format[T"+i+"]").mkString(", ")
+}
+
+@writelines(n:Int) = @{
+  Html(Range(1, n+1).map( i =>
+    "lbl" + i + " -> toJson(product._" + i + ")"
+  ).mkString(",\n          "))
+}
+
+@readlines(n:Int) = @{
+  Range(1, n+1).map( i =>
+    "fromJson[T"+i+"](m(lbl"+i+"))"
+  ).mkString(",\n          ")
+}
+
+@productFormat(i:Int) = {
+  def productFormat@{i}[S, @az(i)](@labels(i))(apply : (@az(i)) => S)(unapply : S => Product@{i}[@az(i)])(implicit @formats(i)) = new Format[S]{
+    def writes(s: S) = {
+      val product = unapply(s)
+      JsObject(
+        Seq(
+          @writelines(i)
+        )
+      )
+    }
+    def reads(js: JsValue) = js match {
+      case JsObject(seq) =>
+        val m = seq.toMap
+        apply(
+          @readlines(i)
+        )
+      case _ => throw new RuntimeException("object expected")
+    }
+  }
+}
+
+@List.range(2,i).map(productFormat)
+
